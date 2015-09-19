@@ -1,9 +1,7 @@
 require_relative 'map'
 
 map = Map.new
-
 map.generate
-
-puts "\n\n"
+puts "Map: #{map.info}"
 
 map.draw

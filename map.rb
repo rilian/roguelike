@@ -1,5 +1,6 @@
 class Map
   attr_accessor :map
+  attr_accessor :info
 
   TILES = {
     rock: '#',
@@ -16,6 +17,8 @@ class Map
       max_room_width: 9,
       min_room_height: 3,
       max_room_height: 5,
+      min_distance_between_rooms: 1,
+      max_room_generation_attempts: 100
     }.merge!(opts)
     @map = []
     @random = Random.new
@@ -23,35 +26,58 @@ class Map
 
   def generate
     fill_map_with_rock
-    create_first_room
+
+    rooms = []
+    5.times do
+      room = generate_room
+
+      if room
+        fill_room_with_ground(*room)
+        rooms << room
+      end
+    end
+
+    player_coords = put_player(*rooms.first)
+
+    @info = {
+      player: player_coords,
+      rooms: rooms
+    }
   end
 
   def draw
+    puts "\n"
     @opts[:map_height].times do |row|
       puts @map[row].map { |c| TILES[c] }.join('')
     end
+    puts "\n"
   end
 
 private
 
-  def create_first_room
+  def generate_room_dimensions
+    top_left = 1 + @random.rand(@opts[:map_width]), 1 + @random.rand(@opts[:map_height])
+    # puts "\ntop left on x=#{top_left.last} y=#{top_left.first}"
+    dimensions = @random.rand(@opts[:min_room_width]...@opts[:max_room_width]), @random.rand(@opts[:min_room_height]...@opts[:max_room_height])
+    # puts "room width=#{dimensions.first} height=#{dimensions.last}"
+    [top_left.first, top_left.last, dimensions.first, dimensions.last]
+  end
+
+  def generate_room
+    attempts = @opts[:max_room_generation_attempts]
     begin
-      begin
-        puts "\n"
-        top_left = 1 + @random.rand(@opts[:map_width]), 1 + @random.rand(@opts[:map_height])
-        dimensions = @random.rand(@opts[:min_room_width]...@opts[:max_room_width]), @random.rand(@opts[:min_room_height]...@opts[:max_room_height])
-        puts "room width=#{dimensions.first} height=#{dimensions.last}"
-      end until room_fit_map?(top_left.first, top_left.last, dimensions.first, dimensions.last)
+      attempts -= 1
+      x, y, w, h = generate_room_dimensions
+    end until result = room_fit_map?(x, y, w, h) && test_room_is_rock?(x, y, w, h) || attempts <= 0
 
+    (result && attempts > 0) ? [x, y, w, h] : nil
+  end
 
-      puts "top left on x=#{top_left.last} y=#{top_left.first}"
-    end until test_room_is_rock?(top_left.first, top_left.last, dimensions.first, dimensions.last)
-
-    fill_with_ground(top_left.first, top_left.last, dimensions.first, dimensions.last)
-
-    player_coords = @random.rand(top_left.first...(top_left.first + dimensions.first)), @random.rand(top_left.last...(top_left.last + dimensions.last))
-    puts "player on x=#{player_coords.first} y=#{player_coords.last}"
+  def put_player(x, y, w, h)
+    player_coords = @random.rand(x...(x + w)), @random.rand(y...(y + h))
+    # puts "player on x=#{player_coords.first} y=#{player_coords.last}"
     @map[player_coords.last][player_coords.first] = :player
+    [player_coords.first, player_coords.last]
   end
 
   def fill_map_with_rock
@@ -66,28 +92,28 @@ private
 
   def room_fit_map?(x, y, w, h)
     if x + w >= @opts[:map_width] - 1 || y + h >= @opts[:map_height] - 1
-      puts 'does not fit map'
+      # puts 'does not fit map'
       return false
     end
-    puts 'fits map'
+    # puts 'fits map'
     true
   end
 
   def test_room_is_rock?(x, y, w, h)
     only_rock = true
-    (x...(x + w)).each do |col|
-      (y...(y + h)).each do |row|
+    ((x - @opts[:min_distance_between_rooms]) ...(x + w + @opts[:min_distance_between_rooms])).each do |col|
+      ((y - @opts[:min_distance_between_rooms])...(y + h + @opts[:min_distance_between_rooms])).each do |row|
         if @map[row][col] != :rock
           only_rock = false
           break
         end
       end
     end
-    puts "contains rock only ? #{only_rock}"
+    # puts "contains rock only ? #{only_rock}"
     only_rock
   end
 
-  def fill_with_ground(x, y, w, h)
+  def fill_room_with_ground(x, y, w, h)
     (x...(x + w)).each do |col|
       (y...(y + h)).each do |row|
         @map[row][col] = :ground
