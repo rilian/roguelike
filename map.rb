@@ -13,7 +13,8 @@ class Map
     @opts = {
       map_width: 40,
       map_height: 10,
-      min_room_width: 3,
+      rooms: 10,
+      min_room_width: 5,
       max_room_width: 9,
       min_room_height: 3,
       max_room_height: 5,
@@ -28,7 +29,7 @@ class Map
     fill_map_with_rock
 
     rooms = []
-    5.times do
+    @opts[:rooms].times do
       room = generate_room
 
       if room
