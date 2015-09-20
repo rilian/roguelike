@@ -57,7 +57,7 @@ private
 
   def generate_room_dimensions
     top_left = 1 + @rnd.rand(@opts[:map_width] - @opts[:min_room_dimension]), 1 + @rnd.rand(@opts[:map_height] - @opts[:min_room_dimension])
-    dimensions = @rnd.rand(@opts[:min_room_dimension]...@opts[:max_room_width]), @rnd.rand(@opts[:min_room_dimension]...@opts[:max_room_height])
+    dimensions = @rnd.rand(@opts[:min_room_dimension]..@opts[:max_room_width]), @rnd.rand(@opts[:min_room_dimension]..@opts[:max_room_height])
     [top_left.first, top_left.last, dimensions.first, dimensions.last]
   end
 
