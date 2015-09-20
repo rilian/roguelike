@@ -50,6 +50,16 @@ class Map
 
 private
 
+  def connect_all_rooms
+    @data[:room_pairs].each do |pair|
+      connect_rooms(@data[:rooms][pair.first], @data[:rooms][pair.last])
+    end
+  end
+
+  def connect_rooms(room1, room2)
+
+  end
+
   def generate_room_pairs
     pairs = []
     @data[:rooms].size.times do |i|
@@ -91,28 +101,37 @@ private
   # end
 
   def generate_doors(room)
+    doors = []
     [
-      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] - 1 },
-      { x: room[:x] - 1, y: room[:y] + @rnd.rand(0...room[:h]) },
-      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] + room[:h] },
-      { x: room[:x] + room[:w], y: room[:y] + @rnd.rand(0...room[:h]) },
+      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] - 1 }, # top
+      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] + room[:h] }, # bottom
+      { x: room[:x] - 1, y: room[:y] + @rnd.rand(0...room[:h]) }, # left
+      { x: room[:x] + room[:w], y: room[:y] + @rnd.rand(0...room[:h]) }, # right
     ].shuffle.each do |point|
-      unless [0, 1, @opts[:map_width] - 1, @opts[:map_width] - 2].include?(point[:x]) || [0, 1, @opts[:map_height] - 1, @opts[:map_height] - 2].include?(point[:y])
-        @map[point[:y]][point[:x]] = :door
-        if point[:x] == room[:x] - 1
-          @map[point[:y]][point[:x] - 1] = :path_start
-        end
-        if point[:x] == room[:x] + room[:w]
-          @map[point[:y]][point[:x] + 1] = :path_start
-        end
-        if point[:y] == room[:y] -1
-          @map[point[:y] - 1][point[:x]] = :path_start
-        end
-        if point[:y] == room[:y] + room[:h]
-          @map[point[:y] + 1][point[:x]] = :path_start
-        end
+      door = { x: point[:x], y: point[:y] }
+      if point[:x] == room[:x] - 1 # left
+        door[:path_start] = { x: point[:x] - 1, y: point[:y] }
+        doors << door unless [0, 1].include?(point[:x])
+      end
+      if point[:x] == room[:x] + room[:w] # right
+        door[:path_start] = { x: point[:x] + 1, y: point[:y] }
+        doors << door unless [@opts[:map_width] - 1, @opts[:map_width] - 2].include?(point[:x])
+      end
+      if point[:y] == room[:y] - 1
+        door[:path_start] = { x: point[:x], y: point[:y] - 1 }
+        doors << door unless [0, 1].include?(point[:y])
+      end
+      if point[:y] == room[:y] + room[:h]
+        door[:path_start] = { x: point[:x], y: point[:y] + 1 }
+        doors << door unless [@opts[:map_height] - 1, @opts[:map_height] - 2].include?(point[:y])
       end
     end
+
+    doors.each do |door|
+      @map[door[:y]][door[:x]] = :door
+      @map[door[:path_start][:y]][door[:path_start][:x]] = :path_start
+    end
+    doors
   end
 
   # def generate_path_lines
@@ -233,7 +252,7 @@ private
       attempts -= 1
       if room = generate_room
         fill_room_with_ground(room)
-        generate_doors(room)
+        room[:doors] = generate_doors(room)
         rooms << room
       end
     end until attempts <= 0 || rooms_density >= @opts[:max_rooms_density]
