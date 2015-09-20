@@ -1,3 +1,4 @@
+require 'byebug'
 require_relative 'map'
 
 map = Map.new

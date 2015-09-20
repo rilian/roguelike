@@ -1,0 +1,10 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    byebug (6.0.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  byebug
