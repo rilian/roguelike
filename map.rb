@@ -22,7 +22,8 @@ class Map
       min_distance_between_rooms: 2,
       max_room_generation_attempts: 100,
       max_rooms_generation_attempts: 5,
-      max_rooms_density: 0.2
+      max_rooms_density: 0.2,
+      # max_rooms_connection_attempts: 1,
     }.merge!(opts)
     @data = {}
   end
@@ -38,6 +39,8 @@ class Map
     # generate_path_lines
     # cleanup_path_line_dead_ends
     # replace_path_to_ground
+    connect_all_rooms
+    #cleanup_pathfinding
   end
 
   def draw
@@ -56,17 +59,135 @@ private
     end
   end
 
+  def process_to_visit(to_visit, destination, start, visited, visited_coords, open, from)
+    if path_point_fits_map?(to_visit) && no_ground_around?(to_visit) && !visited_coords.include?([to_visit[:x], to_visit[:y]])
+      if to_visit == destination || @map[to_visit[:y]][to_visit[:x]] == :path
+        # build path back
+        puts "path found!"
+        back_point = from[:point]
+        while { x: back_point[:x], y: back_point[:y] } != start
+          @map[back_point[:y]][back_point[:x]] = :path
+
+          visited.each do |pt|
+            if pt[:point][:x] == back_point[:x] && pt[:point][:y] == back_point[:y]
+              #puts "found back point #{pt[:back]}"
+              back_point = pt[:back]
+            end
+          end
+        end
+        return true
+      elsif [:rock].include?(@map[to_visit[:y]][to_visit[:x]])
+        #puts "add to open #{to_visit}"
+        open << { point: to_visit, back: from[:point] }
+      end
+    end
+    false
+  end
+
   def connect_rooms(room1, room2)
-    # TODO
+    # attempts = @opts[:max_rooms_connection_attempts]
+    # begin
+    #   attempts -= 1
+      # Choose random door in each of rooms
+    room1[:doors].each do |door1|
+      room2[:doors].each do |door2|
+        start = door1[:path_start]
+        destination = door2[:path_start]
+      # start = room1[:doors].sample[:path_start]
+      # destination = room2[:doors].sample[:path_start]
+      puts "going from #{start} to #{destination}"
+
+      # A+
+      visited = []
+      visited_coords = []
+      open = [{ point: start, back: { x: nil, y: nil } }]
+      # found = false
+
+      while open.size > 0
+        from = open.first
+        distance = 99999
+        open.each do |pt|
+          # use min x or y
+          if distance(pt[:point], destination) < distance
+            distance = distance(pt[:point], destination)
+            from = pt
+          end
+        end
+        #puts "from #{open.size} points selected #{from} with distance #{distance}"
+        open.delete(from)
+
+        visited << from
+        visited_coords << [from[:point][:x], from[:point][:y]]
+
+        # check left direction
+        to_visit = { x: from[:point][:x] - 1, y: from[:point][:y] }
+        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from)
+          # found = true
+          break
+        end
+
+        # check right direction
+        to_visit = { x: from[:point][:x] + 1, y: from[:point][:y] }
+        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from)
+          # found = true
+          break
+        end
+
+        # check top direction
+        to_visit = { x: from[:point][:x], y: from[:point][:y] - 1 }
+        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from)
+          # found = true
+          break
+        end
+
+        # check bottom direction
+        to_visit = { x: from[:point][:x], y: from[:point][:y] + 1 }
+        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from)
+          # found = true
+          break
+        end
+      end
+
+      # puts "visited = #{visited}"
+      # puts "visited_coords = #{visited_coords}"
+      # puts "open = #{open}"
+    # end until attempts <= 0
+    # found
+
+      end
+    end
   end
 
   def generate_room_pairs
-    pairs = []
-    @data[:rooms].size.times do |i|
-      other = (i + 1) % @data[:rooms].size
-      pairs << [i, other] unless i == other || pairs.include?([i, other]) || pairs.include?([other, i])
+    i1 = (0..@data[:rooms].size - 1).to_a
+    i2 = (0...(i1.size-1)).inject([]) {|pairs,x| pairs += ((x+1)...i1.size).map {|y| [i1[x],i1[y]]}}
+
+    # pairs = []
+    # @data[:rooms].size.times do |i|
+    #   other = (i + 1) % @data[:rooms].size
+    #   pairs << [i, other] unless i == other || pairs.include?([i, other]) || pairs.include?([other, i])
+    # end
+    # pairs
+  end
+
+  def no_ground_around?(p)
+    grounds = [:ground, :path_start]
+    !grounds.include?(@map[p[:y] - 1][p[:x] - 1]) &&
+      #!grounds.include?(@map[p[:y] - 1][p[:x]]) &&
+        !grounds.include?(@map[p[:y] - 1][p[:x] + 1]) &&
+       #   !grounds.include?(@map[p[:y]][p[:x] - 1]) &&
+        #    !grounds.include?(@map[p[:y]][p[:x] + 1]) &&
+              !grounds.include?(@map[p[:y] + 1][p[:x] - 1]) &&
+         #       !grounds.include?(@map[p[:y] + 1][p[:x]]) &&
+                  !grounds.include?(@map[p[:y] + 1][p[:x] + 1])
+  end
+
+  def cleanup_pathfinding
+    @opts[:map_height].times do |row|
+      @opts[:map_width].times do |col|
+        @map[row][col] = :ground if [:path, :path_start].include?(@map[row][col])
+      end
     end
-    pairs
   end
 
   # def replace_path_to_ground
@@ -238,10 +359,10 @@ private
   # def get_room_center(x, y, w, h)
   #   [x + (w / 2.0).ceil - 1, y + (h / 2.0).ceil - 1]
   # end
-  #
-  # def distance(p1, p2)
-  #   Math.sqrt((p1.last - p1.first)**2 + (p2.last - p2.first)**2)
-  # end
+
+  def distance(p1, p2)
+    Math.sqrt((p1[:x] - p2[:x])**2 + (p1[:y] - p2[:y])**2)
+  end
 
   def generate_rooms
     fill_map_with_rock
@@ -288,6 +409,10 @@ private
 
   def room_fit_map?(room)
     room[:x] + room[:w] < @opts[:map_width] && room[:y] + room[:h] < @opts[:map_height]
+  end
+
+  def path_point_fits_map?(point)
+    point[:x] < @opts[:map_width] - 1 && point[:y] < @opts[:map_height] - 1 && point[:x] != 0 && point[:y] != 0
   end
 
   def test_room_is_rock?(room)
