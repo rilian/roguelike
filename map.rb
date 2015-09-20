@@ -6,11 +6,9 @@ class Map
     rock: '#',
     ground: '.',
     player: '@',
-    marker: 'x',
     door: '/',
     path_start: 'o',
-    path: '*',
-    path_current: '%',
+    path: '*'
   }
 
   def initialize(opts={})
@@ -23,7 +21,7 @@ class Map
       max_room_height: 5,
       min_distance_between_rooms: 3,
       max_single_room_generation_attempts: 10,
-      max_rooms_generation_attempts: 1,
+      max_rooms_generation_attempts: 2,
       max_rooms_density: 0.2
     }.merge!(opts)
     @data = {}
@@ -31,14 +29,15 @@ class Map
 
   def generate
     @data[:rooms] = generate_rooms
-    #@data[:rooms_unconnected] = @data[:rooms].dup
-    #@data[:rooms_connected] = []
-    @data[:player] = put_player(@data[:rooms].first)
     @data[:rooms_density] = rooms_density
-    #connect_all_rooms
-    #generate_path_lines
+    @data[:player] = put_player(@data[:rooms].first)
+    @data[:room_pairs] = generate_room_pairs
+    # @data[:rooms_unconnected] = @data[:rooms].dup
+    # @data[:rooms_connected] = []
+    # connect_all_rooms
+    # generate_path_lines
     # cleanup_path_line_dead_ends
-    #replace_path_to_ground
+    # replace_path_to_ground
   end
 
   def draw
@@ -51,130 +50,139 @@ class Map
 
 private
 
-  def replace_path_to_ground
-    @opts[:map_height].times do |row|
-      @opts[:map_width].times do |col|
-        @map[row][col] = :ground if [:path, :path_start].include?(@map[row][col])
-      end
+  def generate_room_pairs
+    pairs = []
+    @data[:rooms].size.times do |i|
+      other = (i + 1) % @data[:rooms].size
+      pairs << [i, other] unless i == other || pairs.include?([i, other]) || pairs.include?([other, i])
     end
+    pairs
   end
 
-  def cleanup_path_line_dead_ends
-    replaced = true
-    while replaced
-      replaced = false
-      (1..(@opts[:map_height] - 1)).each do |row|
-        (1..(@opts[:map_width] - 1)).each do |col|
-          if @map[row][col] == :path
-            adjacent_paths = 0
-            adjacent_paths += 1 if [:path, :path_start].include?(@map[row - 1][col])
-            adjacent_paths += 1 if [:path, :path_start].include?(@map[row + 1][col])
-            adjacent_paths += 1 if [:path, :path_start].include?(@map[row][col - 1])
-            adjacent_paths += 1 if [:path, :path_start].include?(@map[row][col + 1])
-
-            if adjacent_paths < 2
-              @map[row][col] = :rock
-              replaced = true
-            end
-          end
-        end
-      end
-    end
-  end
+  # def replace_path_to_ground
+  #   @opts[:map_height].times do |row|
+  #     @opts[:map_width].times do |col|
+  #       @map[row][col] = :ground if [:path, :path_start].include?(@map[row][col])
+  #     end
+  #   end
+  # end
+  #
+  # def cleanup_path_line_dead_ends
+  #   replaced = true
+  #   while replaced
+  #     replaced = false
+  #     (1..(@opts[:map_height] - 1)).each do |row|
+  #       (1..(@opts[:map_width] - 1)).each do |col|
+  #         if @map[row][col] == :path
+  #           adjacent_paths = 0
+  #           adjacent_paths += 1 if [:path, :path_start].include?(@map[row - 1][col])
+  #           adjacent_paths += 1 if [:path, :path_start].include?(@map[row + 1][col])
+  #           adjacent_paths += 1 if [:path, :path_start].include?(@map[row][col - 1])
+  #           adjacent_paths += 1 if [:path, :path_start].include?(@map[row][col + 1])
+  #
+  #           if adjacent_paths < 2
+  #             @map[row][col] = :rock
+  #             replaced = true
+  #           end
+  #         end
+  #       end
+  #     end
+  #   end
+  # end
 
   def generate_doors(room)
     [
-      [room[:x] + @rnd.rand(0...room[:w]), room[:y] - 1],
-      [room[:x] - 1, room[:y] + @rnd.rand(0...room[:h])],
-      [room[:x] + @rnd.rand(0...room[:w]), room[:y] + room[:h]],
-      [room[:x] + room[:w], room[:y] + @rnd.rand(0...room[:h])],
+      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] - 1 },
+      { x: room[:x] - 1, y: room[:y] + @rnd.rand(0...room[:h]) },
+      { x: room[:x] + @rnd.rand(0...room[:w]), y: room[:y] + room[:h] },
+      { x: room[:x] + room[:w], y: room[:y] + @rnd.rand(0...room[:h]) },
     ].shuffle.each do |point|
-      unless [0, 1, @opts[:map_width] - 1, @opts[:map_width] - 2].include?(point.first) || [0, 1, @opts[:map_height] - 1, @opts[:map_height] - 2].include?(point.last)
-        @map[point.last][point.first] = :door
-        if point.first == room[:x] - 1
-          @map[point.last][point.first - 1] = :path_start
+      unless [0, 1, @opts[:map_width] - 1, @opts[:map_width] - 2].include?(point[:x]) || [0, 1, @opts[:map_height] - 1, @opts[:map_height] - 2].include?(point[:y])
+        @map[point[:y]][point[:x]] = :door
+        if point[:x] == room[:x] - 1
+          @map[point[:y]][point[:x] - 1] = :path_start
         end
-        if point.first == room[:x] + room[:w]
-          @map[point.last][point.first + 1] = :path_start
+        if point[:x] == room[:x] + room[:w]
+          @map[point[:y]][point[:x] + 1] = :path_start
         end
-        if point.last == room[:y] -1
-          @map[point.last - 1][point.first] = :path_start
+        if point[:y] == room[:y] -1
+          @map[point[:y] - 1][point[:x]] = :path_start
         end
-        if point.last == room[:y] + room[:h]
-          @map[point.last + 1][point.first] = :path_start
+        if point[:y] == room[:y] + room[:h]
+          @map[point[:y] + 1][point[:x]] = :path_start
         end
       end
     end
   end
 
-  def generate_path_lines
-    # TODO: for each room generate lines. if line touch line of same room, then discard this line
-    path_points = []
-    @opts[:map_height].times do |row|
-      @opts[:map_width].times do |col|
-        path_points << [col, row] if @map[row][col] == :path_start
-      end
-    end
-    # puts "path_points = #{path_points}"
-
-    path_points.each do |point|
-      # puts "point = #{point}"
-      x = point.first
-      while x > 1
-        x -= 1
-        map[point.last][x] == :rock &&
-          ![:ground, :door].include?(map[point.last][x - 1]) &&
-          !(
-            (
-              [:path].include?(map[point.last - 1][x - 1]) ||
-              [:path].include?(map[point.last + 1][x - 1])
-            ) &&
-            ![:path].include?(map[point.last][x - 1])
-          ) &&
-          ![:ground, :door].include?(map[point.last - 1][x]) &&
-          ![:ground, :door].include?(map[point.last + 1][x]) ?
-        map[point.last][x] = :path : break
-      end
-      x = point.first
-      while x < @opts[:map_width] - 2
-        x += 1
-        map[point.last][x] == :rock &&
-          ![:ground, :door].include?(map[point.last][x + 1]) &&
-          !(
-            (
-              [:path].include?(map[point.last - 1][x + 1]) ||
-              [:path].include?(map[point.last + 1][x + 1])
-            ) &&
-            ![:path].include?(map[point.last][x + 1])
-          ) &&
-          ![:ground, :door].include?(map[point.last - 1][x]) &&
-          ![:ground, :door].include?(map[point.last + 1][x]) ?
-        map[point.last][x] = :path : break
-      end
-      y = point.last
-      while y > 1
-        y -= 1
-        map[y][point.first] == :rock &&
-          ![:ground, :door].include?(map[y - 1][point.first]) &&
-          ![:path].include?(map[y - 1][point.first - 1]) &&
-          ![:path].include?(map[y - 1][point.first + 1]) &&
-          ![:ground, :door].include?(map[y][point.first - 1]) &&
-          ![:ground, :door].include?(map[y][point.first + 1]) ?
-        map[y][point.first] = :path : break
-      end
-      y = point.last
-      while y < @opts[:map_height] - 2
-        y += 1
-        map[y][point.first] == :rock &&
-          ![:ground, :door].include?(map[y + 1][point.first]) &&
-          ![:path].include?(map[y + 1][point.first - 1]) &&
-          ![:path].include?(map[y + 1][point.first + 1]) &&
-          ![:ground, :door].include?(map[y][point.first + 1]) &&
-          ![:ground, :door].include?(map[y][point.first - 1]) ?
-        map[y][point.first] = :path : break
-      end
-    end
-  end
+  # def generate_path_lines
+  #   # TODO: for each room generate lines. if line touch line of same room, then discard this line
+  #   path_points = []
+  #   @opts[:map_height].times do |row|
+  #     @opts[:map_width].times do |col|
+  #       path_points << [col, row] if @map[row][col] == :path_start
+  #     end
+  #   end
+  #   # puts "path_points = #{path_points}"
+  #
+  #   path_points.each do |point|
+  #     # puts "point = #{point}"
+  #     x = point.first
+  #     while x > 1
+  #       x -= 1
+  #       map[point.last][x] == :rock &&
+  #         ![:ground, :door].include?(map[point.last][x - 1]) &&
+  #         !(
+  #           (
+  #             [:path].include?(map[point.last - 1][x - 1]) ||
+  #             [:path].include?(map[point.last + 1][x - 1])
+  #           ) &&
+  #           ![:path].include?(map[point.last][x - 1])
+  #         ) &&
+  #         ![:ground, :door].include?(map[point.last - 1][x]) &&
+  #         ![:ground, :door].include?(map[point.last + 1][x]) ?
+  #       map[point.last][x] = :path : break
+  #     end
+  #     x = point.first
+  #     while x < @opts[:map_width] - 2
+  #       x += 1
+  #       map[point.last][x] == :rock &&
+  #         ![:ground, :door].include?(map[point.last][x + 1]) &&
+  #         !(
+  #           (
+  #             [:path].include?(map[point.last - 1][x + 1]) ||
+  #             [:path].include?(map[point.last + 1][x + 1])
+  #           ) &&
+  #           ![:path].include?(map[point.last][x + 1])
+  #         ) &&
+  #         ![:ground, :door].include?(map[point.last - 1][x]) &&
+  #         ![:ground, :door].include?(map[point.last + 1][x]) ?
+  #       map[point.last][x] = :path : break
+  #     end
+  #     y = point.last
+  #     while y > 1
+  #       y -= 1
+  #       map[y][point.first] == :rock &&
+  #         ![:ground, :door].include?(map[y - 1][point.first]) &&
+  #         ![:path].include?(map[y - 1][point.first - 1]) &&
+  #         ![:path].include?(map[y - 1][point.first + 1]) &&
+  #         ![:ground, :door].include?(map[y][point.first - 1]) &&
+  #         ![:ground, :door].include?(map[y][point.first + 1]) ?
+  #       map[y][point.first] = :path : break
+  #     end
+  #     y = point.last
+  #     while y < @opts[:map_height] - 2
+  #       y += 1
+  #       map[y][point.first] == :rock &&
+  #         ![:ground, :door].include?(map[y + 1][point.first]) &&
+  #         ![:path].include?(map[y + 1][point.first - 1]) &&
+  #         ![:path].include?(map[y + 1][point.first + 1]) &&
+  #         ![:ground, :door].include?(map[y][point.first + 1]) &&
+  #         ![:ground, :door].include?(map[y][point.first - 1]) ?
+  #       map[y][point.first] = :path : break
+  #     end
+  #   end
+  # end
 
   # def connect_all_rooms
   #   return if @data[:rooms_unconnected].empty?
