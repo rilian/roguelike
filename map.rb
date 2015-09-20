@@ -1,6 +1,6 @@
 class Map
   attr_accessor :map
-  attr_accessor :info
+  attr_accessor :data
 
   TILES = {
     rock: '#',
@@ -9,39 +9,25 @@ class Map
   }
 
   def initialize(opts={})
+    @rnd = Random.new
     @opts = {
       map_width: 40,
       map_height: 10,
       min_room_dimension: 3,
       max_room_width: 9,
       max_room_height: 5,
-      min_distance_between_rooms: 2,
+      min_distance_between_rooms: 3,
       max_single_room_generation_attempts: 100,
       max_rooms_generation_attempts: 10,
       max_rooms_density: 0.2
     }.merge!(opts)
-    @map = []
-    @rnd = Random.new
+    @data = {}
   end
 
   def generate
-    fill_map_with_rock
-
-    rooms = []
-    attempts = @opts[:max_rooms_generation_attempts]
-    begin
-      attempts -= 1
-      if room = generate_room
-        fill_room_with_ground(*room)
-        rooms << room
-      end
-    end until attempts <= 0 || rooms_density >= @opts[:max_rooms_density]
-
-    @info = {
-      player: put_player(*rooms.first),
-      rooms: rooms,
-      rooms_density: rooms_density
-    }
+    @data[:rooms] = generate_rooms
+    @data[:player] = put_player(*@data[:rooms].first)
+    @data[:rooms_density] = rooms_density
   end
 
   def draw
@@ -53,6 +39,21 @@ class Map
   end
 
 private
+
+  def generate_rooms
+    fill_map_with_rock
+
+    rooms = []
+    attempts = @opts[:max_rooms_generation_attempts]
+    begin
+      attempts -= 1
+      if room = generate_room
+        fill_room_with_ground(*room)
+        rooms << room
+      end
+    end until attempts <= 0 || rooms_density >= @opts[:max_rooms_density]
+    rooms
+  end
 
   def generate_room_dimensions
     top_left = 1 + @rnd.rand(@opts[:map_width]), 1 + @rnd.rand(@opts[:map_height])
@@ -71,6 +72,7 @@ private
   end
 
   def fill_map_with_rock
+    @map = []
     @opts[:map_height].times do |row|
       @map << []
       @opts[:map_width].times do |_col|
@@ -88,7 +90,7 @@ private
     only_rock = true
     ((x - @opts[:min_distance_between_rooms]) ...(x + w + @opts[:min_distance_between_rooms])).each do |col|
       ((y - @opts[:min_distance_between_rooms])...(y + h + @opts[:min_distance_between_rooms])).each do |row|
-        if @map[row][col] != :rock
+        if @map[row] && @map[row][col] && @map[row][col] != :rock
           only_rock = false
           break
         end
