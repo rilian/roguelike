@@ -237,32 +237,15 @@ private
         visited << from
         visited_coords << [from[:point][:x], from[:point][:y]]
 
-        # check left direction
-        to_visit = { x: from[:point][:x] - 1, y: from[:point][:y] }
-        dir = 'w'
-        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from, dir)
-          return true
-        end
-
-        # check right direction
-        to_visit = { x: from[:point][:x] + 1, y: from[:point][:y] }
-        dir = 'e'
-        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from, dir)
-          return true
-        end
-
-        # check top direction
-        to_visit = { x: from[:point][:x], y: from[:point][:y] - 1 }
-        dir = 'n'
-        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from, dir)
-          return true
-        end
-
-        # check bottom direction
-        to_visit = { x: from[:point][:x], y: from[:point][:y] + 1 }
-        dir = 's'
-        if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from, dir)
-          return true
+        [
+          [{ x: from[:point][:x] - 1, y: from[:point][:y] }, 'w'],
+          [{ x: from[:point][:x] + 1, y: from[:point][:y] }, 'e'],
+          [{ x: from[:point][:x], y: from[:point][:y] - 1 }, 'n'],
+          [{ x: from[:point][:x], y: from[:point][:y] + 1 }, 's'],
+        ].each do |to_visit, dir|
+          if process_to_visit(to_visit, destination, start, visited, visited_coords, open, from, dir)
+            return true
+          end
         end
       end
     end
