@@ -5,6 +5,7 @@ class Map
   TILES = {
     rock: '#',
     ground: '.',
+    nothing: ' ',
     player: '@',
     door: '+',
     path_start: 'o',
@@ -24,7 +25,7 @@ class Map
       max_room_generation_attempts: 5,
       max_rooms_generation_attempts: 5,
       max_rooms_density: 0.2,
-      verbose: true,
+      verbose: false,
     }.merge!(opts)
     @data = {}
   end
@@ -40,6 +41,7 @@ class Map
       else
         generated = true
         cleanup_pathfinding
+        cleanup_edges
         stamp_rooms if @opts[:verbose]
         @data[:player] = put_player(@data[:rooms].first)
       end
@@ -365,14 +367,26 @@ private
 
   def no_sym_around?(sym, p)
     grounds = [*sym]
-    !grounds.include?(@map[p[:y] - 1][p[:x] - 1]) &&
-      !grounds.include?(@map[p[:y] - 1][p[:x] + 1]) &&
-      !grounds.include?(@map[p[:y] + 1][p[:x] - 1]) &&
-      !grounds.include?(@map[p[:y] + 1][p[:x] + 1]) &&
-      !grounds.include?(@map[p[:y] - 1][p[:x]]) &&
-      !grounds.include?(@map[p[:y]][p[:x] - 1]) &&
-      !grounds.include?(@map[p[:y]][p[:x] + 1]) &&
-      !grounds.include?(@map[p[:y] + 1][p[:x]])
+    begin !grounds.include?(@map[p[:y] - 1][p[:x] - 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y] - 1][p[:x] + 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y] + 1][p[:x] - 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y] + 1][p[:x] + 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y] - 1][p[:x]]) rescue true end &&
+      begin !grounds.include?(@map[p[:y]][p[:x] - 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y]][p[:x] + 1]) rescue true end &&
+      begin !grounds.include?(@map[p[:y] + 1][p[:x]]) rescue true end
+  end
+
+  def cleanup_edges
+    @opts[:map_height].times do |row|
+      @opts[:map_width].times do |col|
+        if [:rock].include?(@map[row][col])
+          if no_sym_around?(:ground, {x: col, y: row})
+            @map[row][col] = :nothing
+          end
+        end
+      end
+    end
   end
 
   def put_player(room)
