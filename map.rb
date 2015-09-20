@@ -19,9 +19,9 @@ class Map
       min_room_dimension: 3,
       max_room_width: 9,
       max_room_height: 5,
-      min_distance_between_rooms: 3,
-      max_single_room_generation_attempts: 10,
-      max_rooms_generation_attempts: 2,
+      min_distance_between_rooms: 2,
+      max_room_generation_attempts: 100,
+      max_rooms_generation_attempts: 5,
       max_rooms_density: 0.2
     }.merge!(opts)
     @data = {}
@@ -57,7 +57,7 @@ private
   end
 
   def connect_rooms(room1, room2)
-
+    # TODO
   end
 
   def generate_room_pairs
@@ -266,14 +266,14 @@ private
   end
 
   def generate_room
-    room = {}
-    attempts = @opts[:max_single_room_generation_attempts]
+    attempts = @opts[:max_room_generation_attempts]
     begin
+      room = {}
       attempts -= 1
       room.merge! generate_room_dimensions
-    end until result = room_fit_map?(room) && test_room_is_rock?(room) || attempts <= 0
+    end until attempts <= 0 || result = room_fit_map?(room) && test_room_is_rock?(room)
 
-    (result && attempts > 0) ? room : nil
+    result ? room : nil
   end
 
   def fill_map_with_rock
@@ -281,7 +281,6 @@ private
     @opts[:map_height].times do |row|
       @map << []
       @opts[:map_width].times do |_col|
-        @map[row] = [] if @map[row].nil?
         @map[row] << :rock
       end
     end
@@ -311,18 +310,18 @@ private
   end
 
   def rooms_density
-    ground_tiles = 0
+    ground = 0
     @opts[:map_height].times do |row|
       @opts[:map_width].times do |col|
-        ground_tiles += 1 if @map[row][col] != :rock
+        ground += 1 if @map[row][col] != :rock
       end
     end
-    ground_tiles.to_f / (@opts[:map_height] * @opts[:map_width])
+    ground.to_f / (@opts[:map_height] * @opts[:map_width])
   end
 
   def put_player(room)
-    player_coords = @rnd.rand((room[:x] + 1)...(room[:x] + room[:w] - 1)), @rnd.rand((room[:y] + 1)...(room[:y] + room[:h] - 1))
-    @map[player_coords.last][player_coords.first] = :player
-    { x: player_coords.first, y: player_coords.last }
+    coords = @rnd.rand((room[:x] + 1)...(room[:x] + room[:w] - 1)), @rnd.rand((room[:y] + 1)...(room[:y] + room[:h] - 1))
+    @map[coords.last][coords.first] = :player
+    { x: coords.first, y: coords.last }
   end
 end
