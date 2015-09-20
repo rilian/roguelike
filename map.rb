@@ -13,13 +13,13 @@ class Map
     @opts = {
       map_width: 40,
       map_height: 10,
-      rooms: 10,
-      min_room_width: 5,
+      min_room_dimension: 3,
       max_room_width: 9,
-      min_room_height: 3,
       max_room_height: 5,
-      min_distance_between_rooms: 1,
-      max_room_generation_attempts: 100
+      min_distance_between_rooms: 2,
+      max_single_room_generation_attempts: 100,
+      max_rooms_generation_attempts: 10,
+      max_rooms_density: 0.2
     }.merge!(opts)
     @map = []
     @random = Random.new
@@ -29,20 +29,23 @@ class Map
     fill_map_with_rock
 
     rooms = []
-    @opts[:rooms].times do
+    attempts = @opts[:max_rooms_generation_attempts]
+    begin
+      attempts -= 1
       room = generate_room
 
       if room
         fill_room_with_ground(*room)
         rooms << room
       end
-    end
+    end until attempts <= 0 || rooms_density >= @opts[:max_rooms_density]
 
     player_coords = put_player(*rooms.first)
 
     @info = {
       player: player_coords,
-      rooms: rooms
+      rooms: rooms,
+      rooms_density: rooms_density
     }
   end
 
@@ -59,13 +62,13 @@ private
   def generate_room_dimensions
     top_left = 1 + @random.rand(@opts[:map_width]), 1 + @random.rand(@opts[:map_height])
     # puts "\ntop left on x=#{top_left.last} y=#{top_left.first}"
-    dimensions = @random.rand(@opts[:min_room_width]...@opts[:max_room_width]), @random.rand(@opts[:min_room_height]...@opts[:max_room_height])
+    dimensions = @random.rand(@opts[:min_room_dimension]...@opts[:max_room_width]), @random.rand(@opts[:min_room_dimension]...@opts[:max_room_height])
     # puts "room width=#{dimensions.first} height=#{dimensions.last}"
     [top_left.first, top_left.last, dimensions.first, dimensions.last]
   end
 
   def generate_room
-    attempts = @opts[:max_room_generation_attempts]
+    attempts = @opts[:max_single_room_generation_attempts]
     begin
       attempts -= 1
       x, y, w, h = generate_room_dimensions
@@ -120,5 +123,15 @@ private
         @map[row][col] = :ground
       end
     end
+  end
+
+  def rooms_density
+    ground_tiles = 0
+    @opts[:map_height].times do |row|
+      @opts[:map_width].times do |col|
+        ground_tiles += 1 if @map[row][col] != :rock
+      end
+    end
+    ground_tiles.to_f / (@opts[:map_height] * @opts[:map_width])
   end
 end
