@@ -6,7 +6,9 @@ class Map
     rock: '#',
     ground: '.',
     player: '@',
-    marker: 'x'
+    marker: 'x',
+    door: '/',
+    path_start: 'o'
   }
 
   def initialize(opts={})
@@ -31,6 +33,7 @@ class Map
     @data[:rooms_connected] = []
     @data[:player] = put_player(*@data[:rooms].first)
     @data[:rooms_density] = rooms_density
+    generate_doors
     connect_all_rooms
   end
 
@@ -43,6 +46,39 @@ class Map
   end
 
 private
+
+  def generate_doors
+    @data[:rooms].each do |room|
+      doors = 0
+      # puts "room = #{room.inspect}"
+      [
+        [room[0] + @rnd.rand(0...room[2]), room[1] - 1],
+        [room[0] + @rnd.rand(0...room[2]), room[1] + room[3]],
+        [room[0] - 1, room[1] + @rnd.rand(0...room[3])],
+        [room[0] + room[2], room[1] + @rnd.rand(0...room[3])],
+      ].each do |point|
+        # puts "door point = #{point.inspect}"
+        if doors == 0 || @rnd.rand(0..100) > 25
+          unless [0, 1, @opts[:map_width] - 1, @opts[:map_width] - 2].include?(point.first) || [0, 1, @opts[:map_height] - 1, @opts[:map_height] - 2].include?(point.last)
+            @map[point.last][point.first] = :door
+            if point.first == room[0] -1
+              @map[point.last][point.first - 1] = :path_start
+            end
+            if point.first == room[0] + room[2]
+              @map[point.last][point.first + 1] = :path_start
+            end
+            if point.last == room[1] -1
+              @map[point.last - 1][point.first] = :path_start
+            end
+            if point.last == room[1] + room[3]
+              @map[point.last + 1][point.first] = :path_start
+            end
+            doors += 1
+          end
+        end
+      end
+    end
+  end
 
   def connect_all_rooms
     return if @data[:rooms_unconnected].empty?
@@ -64,9 +100,16 @@ private
   end
 
   def connect_rooms(room_1, room_2)
-    puts "\nconnecting rooms\n"
-    puts room_1.inspect
-    puts room_2.inspect
+    # puts "\nconnecting rooms\n"
+    # puts "room_1 = #{room_1.inspect}"
+    # puts "room_2 = #{room_2.inspect}"
+    center_1 = get_room_center(*room_1)
+    center_2 = get_room_center(*room_2)
+    # puts "center_1 = #{center_1.inspect}"
+    # puts "center_2 = #{center_2.inspect}"
+
+    diff_x = center_2.first - center_1.first
+    diff_y = center_2.last - center_1.last
   end
 
   def get_room_center(x, y, w, h)
