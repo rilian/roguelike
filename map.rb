@@ -56,7 +56,7 @@ private
   end
 
   def generate_room_dimensions
-    top_left = 1 + @rnd.rand(@opts[:map_width]), 1 + @rnd.rand(@opts[:map_height])
+    top_left = 1 + @rnd.rand(@opts[:map_width] - @opts[:min_room_dimension]), 1 + @rnd.rand(@opts[:map_height] - @opts[:min_room_dimension])
     dimensions = @rnd.rand(@opts[:min_room_dimension]...@opts[:max_room_width]), @rnd.rand(@opts[:min_room_dimension]...@opts[:max_room_height])
     [top_left.first, top_left.last, dimensions.first, dimensions.last]
   end
@@ -83,7 +83,7 @@ private
   end
 
   def room_fit_map?(x, y, w, h)
-    x + w < @opts[:map_width] - 1 && y + h < @opts[:map_height] - 1
+    x + w < @opts[:map_width] && y + h < @opts[:map_height]
   end
 
   def test_room_is_rock?(x, y, w, h)
