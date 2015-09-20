@@ -5,7 +5,8 @@ class Map
   TILES = {
     rock: '#',
     ground: '.',
-    player: '@'
+    player: '@',
+    marker: 'x'
   }
 
   def initialize(opts={})
@@ -26,8 +27,11 @@ class Map
 
   def generate
     @data[:rooms] = generate_rooms
+    @data[:rooms_unconnected] = @data[:rooms].dup
+    @data[:rooms_connected] = []
     @data[:player] = put_player(*@data[:rooms].first)
     @data[:rooms_density] = rooms_density
+    connect_all_rooms
   end
 
   def draw
@@ -39,6 +43,39 @@ class Map
   end
 
 private
+
+  def connect_all_rooms
+    return if @data[:rooms_unconnected].empty?
+
+    @data[:rooms_connected] << @data[:rooms_unconnected].pop
+
+    while !@data[:rooms_unconnected].empty?
+      room_1 = @data[:rooms_unconnected].pop
+      center = get_room_center(*room_1)
+      room_2 = @data[:rooms_connected].sort { |a, b|
+        distance(get_room_center(*a), center) <=> distance(get_room_center(*b), center)
+      }.first.dup
+      # @map[center.last][center.first] = :marker
+      # @map[get_room_center(*room_2).last][get_room_center(*room_2).first] = :marker
+
+      connect_rooms(room_1, room_2)
+      @data[:rooms_connected] << room_1
+    end
+  end
+
+  def connect_rooms(room_1, room_2)
+    puts "\nconnecting rooms\n"
+    puts room_1.inspect
+    puts room_2.inspect
+  end
+
+  def get_room_center(x, y, w, h)
+    [x + (w / 2.0).ceil - 1, y + (h / 2.0).ceil - 1]
+  end
+
+  def distance(p1, p2)
+    Math.sqrt((p1.last - p1.first)**2 + (p2.last - p2.first)**2)
+  end
 
   def generate_rooms
     fill_map_with_rock
