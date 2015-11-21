@@ -18,13 +18,14 @@ class Map
     @opts = {
       map_width: 80,
       map_height: 20,
-      min_room_dimension: 3,
+      min_room_width: 5,
+      min_room_height: 3,
       max_room_width: 9,
       max_room_height: 6,
       min_distance_between_rooms: 5,
       max_room_generation_attempts: 5,
-      max_rooms_generation_attempts: 5,
-      max_rooms_density: 0.2,
+      max_rooms_generation_attempts: 10,
+      max_rooms_density: 0.5,
       verbose: false,
     }.merge!(opts)
     @data = {}
@@ -96,8 +97,8 @@ private
   end
 
   def generate_room_dimensions
-    top_left = 1 + @rnd.rand(@opts[:map_width] - @opts[:min_room_dimension]), 1 + @rnd.rand(@opts[:map_height] - @opts[:min_room_dimension])
-    dimensions = @rnd.rand(@opts[:min_room_dimension]..@opts[:max_room_width]), @rnd.rand(@opts[:min_room_dimension]..@opts[:max_room_height])
+    top_left = 1 + @rnd.rand(@opts[:map_width] - @opts[:min_room_width]), 1 + @rnd.rand(@opts[:map_height] - @opts[:min_room_height])
+    dimensions = @rnd.rand(@opts[:min_room_width]..@opts[:max_room_width]), @rnd.rand(@opts[:min_room_height]..@opts[:max_room_height])
     { x: top_left.first, y: top_left.last, w: dimensions.first, h: dimensions.last }
   end
 
@@ -204,7 +205,9 @@ private
 
   def connect_all_rooms
     @data[:room_pairs].each do |pair|
+      #puts "start #{Time.now}"
       return false unless connect_rooms(@data[:rooms][pair.first], @data[:rooms][pair.last])
+      #puts "end #{Time.now}"
     end
   end
 
